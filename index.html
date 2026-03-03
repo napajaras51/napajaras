@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Claim Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- PapaParse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f0fdf4; } /* โทนเขียวพาสเทลอ่อน */
+        .sidebar-item.active { background-color: rgba(255, 255, 255, 0.15); border-left: 4px solid #6ee7b7; box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05); }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border-radius: 0.75rem; border: 1px solid #e2e8f0; }
+        .table-container { overflow-x: auto; max-height: 500px; }
+        th { position: sticky; top: 0; background-color: #064e3b; color: white; z-index: 10; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #059669; }
+        .loader { border-top-color: #10b981; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="text-gray-800 flex h-screen overflow-hidden">
+
+    <!-- Sidebar: ไล่เฉดสี เขียวเข้มไปเขียวสว่างมินิมอล -->
+    <aside class="w-64 bg-gradient-to-b from-[#064e3b] via-[#047857] to-[#10b981] text-white flex flex-col shadow-xl z-20 transition-all duration-300">
+        <div class="p-5 border-b border-white/20 flex items-center gap-3">
+            <i class="fa-solid fa-hospital-user text-2xl text-emerald-100"></i>
+            <div>
+                <h1 class="text-lg font-bold leading-tight tracking-wide">IP Claim</h1>
+                <p class="text-xs text-emerald-100/80 font-light">Data Analytics Dashboard</p>
+            </div>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1">
+                <li>
+                    <button onclick="switchTab('main')" id="nav-main" class="sidebar-item active w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i> หน้าหลัก
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('doctor')" id="nav-doctor" class="sidebar-item w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium">
+                        <i class="fa-solid fa-user-doctor w-5 text-center"></i> แยกรายแพทย์
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('doctor-masked')" id="nav-doctor-masked" class="sidebar-item w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium text-emerald-100">
+                        <i class="fa-solid fa-user-secret w-5 text-center"></i> แยกรายแพทย์ (ปกปิด)
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('ward')" id="nav-ward" class="sidebar-item w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium">
+                        <i class="fa-solid fa-building w-5 text-center"></i> แยกรายตึก
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('dept')" id="nav-dept" class="sidebar-item w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium">
+                        <i class="fa-solid fa-code-branch w-5 text-center"></i> แยกตามแผนกที่ยืม
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('data')" id="nav-data" class="sidebar-item w-full text-left px-6 py-3 hover:bg-white/10 transition flex items-center gap-3 font-medium">
+                        <i class="fa-solid fa-database w-5 text-center"></i> จัดการข้อมูล
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="p-4 text-sm font-medium text-center border-t border-white/20 text-white bg-black/10 leading-relaxed backdrop-blur-sm">
+            พัฒนาโดย<br>นางสาวนภาจรัส พรมรี<br>นักสาธารณสุขชำนาญการ
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Top Header -->
+        <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-10 w-full">
+            <div class="flex items-center gap-4 flex-1">
+                <div id="datetime-display" class="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 px-4 py-1.5 rounded-full flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-regular fa-clock text-emerald-600"></i> <span id="current-time"></span>
+                </div>
+                
+                <!-- Label & Input for Month -->
+                <div class="flex items-center gap-2 ml-2 pl-4 border-l border-gray-200">
+                    <span class="text-xl font-bold text-emerald-900 tracking-tight">Dashboard</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">เดือน:</span>
+                    <input type="text" id="monthInput" placeholder="ระบุเดือน เช่น ม.ค. 67" class="text-base border-b-2 border-emerald-200 focus:border-emerald-500 focus:outline-none px-2 py-0.5 w-48 text-emerald-800 font-semibold bg-transparent transition-colors placeholder-gray-300">
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
+                <button onclick="document.getElementById('csvFileInput').click()" class="bg-white border border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-4 py-2 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                    <i class="fa-solid fa-file-import"></i> นำเข้าข้อมูล CSV
+                </button>
+                
+                <button id="authBtn" onclick="toggleAuthModal()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                    <i class="fa-solid fa-lock"></i> <span id="authBtnText">ผู้ใช้งานทั่วไป (Log in)</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Cards -->
+        <div class="px-6 pt-6 pb-2 grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0">
+            <div class="glass-card p-4 border-l-4 border-emerald-500 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">จำนวนชาร์ททั้งหมด</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="kpi-total">0</h3>
+                    </div>
+                    <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                        <i class="fa-solid fa-file-lines text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card p-4 border-l-4 border-teal-500 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">ส่งเคลมแล้ว</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="kpi-sent">0</h3>
+                    </div>
+                    <div class="p-2 bg-teal-50 rounded-lg text-teal-600">
+                        <i class="fa-solid fa-check-circle text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card p-4 border-l-4 border-amber-500 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">รอเคลม</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="kpi-pending">0</h3>
+                    </div>
+                    <div class="p-2 bg-amber-50 rounded-lg text-amber-600">
+                        <i class="fa-solid fa-hourglass-half text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card p-4 border-l-4 border-rose-400 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">รอตึกส่งออก</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="kpi-ward">0</h3>
+                    </div>
+                    <div class="p-2 bg-rose-50 rounded-lg text-rose-500">
+                        <i class="fa-solid fa-person-walking-arrow-right text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto p-6" id="main-content">
+            
+            <!-- Tab 1: Main -->
+            <div id="tab-main" class="tab-pane">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-emerald-900"><i class="fa-solid fa-chart-pie mr-2 text-emerald-600"></i>สรุปภาพรวมการส่งเคลมรายเดือน</h2>
+                    <button onclick="printTabAsSlide('main', 'สรุปภาพรวมการส่งเคลมรายเดือน')" class="bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white px-4 py-1.5 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-file-powerpoint"></i> พิมพ์เป็นสไลด์ (A4)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">สถานะการส่งเคลมรายเดือน (เดือนที่จำหน่าย)</h2>
+                        <div id="chart-main-bar" style="width: 100%; height: 350px;"></div>
+                    </div>
+                    <div class="glass-card p-5 flex flex-col">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">ตาราง Pivot: ส่งเคลมแล้ว แยกตามกองทุน</h2>
+                        <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-main-pivot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Doctor -->
+            <div id="tab-doctor" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-emerald-900"><i class="fa-solid fa-user-doctor mr-2 text-emerald-600"></i>สรุปสถานะรอแพทย์สรุปแยกรายแพทย์</h2>
+                    <button onclick="printTabAsSlide('doctor', 'สรุปสถานะรอแพทย์สรุปแยกรายแพทย์')" class="bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white px-4 py-1.5 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-file-powerpoint"></i> พิมพ์เป็นสไลด์ (A4)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">ชาร์ทสถานะ "รอแพทย์สรุป" แยกตามชื่อแพทย์</h2>
+                        <div id="chart-doc-bar" style="width: 100%; height: 450px;"></div>
+                    </div>
+                    <div class="glass-card p-5 flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
+                            <h2 class="text-lg font-bold text-emerald-900">ตาราง Pivot: รอแพทย์สรุป (> 7 วัน)</h2>
+                            <button onclick="printDoctorTable()" class="text-gray-500 hover:text-emerald-800 hover:bg-emerald-50 border border-gray-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 transition duration-200">
+                                <i class="fa-solid fa-print"></i> พิมพ์
+                            </button>
+                        </div>
+                        <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-doc-pivot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2.1: Doctor (Masked) -->
+            <div id="tab-doctor-masked" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-emerald-900"><i class="fa-solid fa-user-secret mr-2 text-emerald-600"></i>สรุปสถานะรอแพทย์สรุป (ปกปิดชื่อ)</h2>
+                    <button onclick="printTabAsSlide('doctor-masked', 'สรุปสถานะรอแพทย์สรุป (ปกปิดชื่อ)')" class="bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white px-4 py-1.5 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-file-powerpoint"></i> พิมพ์เป็นสไลด์ (A4)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">ชาร์ทสถานะ "รอแพทย์สรุป" (ปกปิดชื่อ)</h2>
+                        <div id="chart-doc-masked-bar" style="width: 100%; height: 450px;"></div>
+                    </div>
+                    <div class="glass-card p-5 flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
+                            <h2 class="text-lg font-bold text-emerald-900">ตาราง Pivot: รอแพทย์สรุป (> 7 วัน) (ปกปิดชื่อ)</h2>
+                            <button onclick="printDoctorMaskedTable()" class="text-gray-500 hover:text-emerald-800 hover:bg-emerald-50 border border-gray-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 transition duration-200">
+                                <i class="fa-solid fa-print"></i> พิมพ์
+                            </button>
+                        </div>
+                        <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-doc-masked-pivot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Ward -->
+            <div id="tab-ward" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-emerald-900"><i class="fa-solid fa-building mr-2 text-emerald-600"></i>สรุปสถานะรอตึกส่งออกแยกรายตึก</h2>
+                    <button onclick="printTabAsSlide('ward', 'สรุปสถานะรอตึกส่งออกแยกรายตึก')" class="bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white px-4 py-1.5 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-file-powerpoint"></i> พิมพ์เป็นสไลด์ (A4)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">สัดส่วน "รอตึกส่งออก" แยกรายตึก</h2>
+                        <div id="chart-ward-donut" style="width: 100%; height: 350px;"></div>
+                    </div>
+                    <div class="glass-card p-5 flex flex-col">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">ตาราง Pivot: รอตึกส่งออก (> 3 วัน)</h2>
+                        <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-ward-pivot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Dept -->
+            <div id="tab-dept" class="tab-pane hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-emerald-900"><i class="fa-solid fa-code-branch mr-2 text-emerald-600"></i>สรุปโครงสร้างสถานะรอเคลมแยกตามแผนก</h2>
+                    <button onclick="printTabAsSlide('dept', 'สรุปโครงสร้างสถานะรอเคลมแยกตามแผนก')" class="bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white px-4 py-1.5 rounded-lg text-sm transition shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-file-powerpoint"></i> พิมพ์เป็นสไลด์ (A4)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">โครงสร้าง "รอเคลม" แยกตามสถานะชาร์ท</h2>
+                        <div id="chart-dept-tree" style="width: 100%; height: 400px;"></div>
+                    </div>
+                    <div class="glass-card p-5 flex flex-col">
+                        <h2 class="text-lg font-bold text-emerald-900 mb-4 border-b border-emerald-100 pb-2">ตาราง Pivot: สถานะรอเคลม เปรียบเทียบรายเดือน</h2>
+                        <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-dept-pivot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Data Table (Raw/Masked) -->
+            <div id="tab-data" class="tab-pane hidden">
+                <div class="glass-card p-5 flex flex-col h-[calc(100vh-220px)]">
+                    <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
+                        <h2 class="text-lg font-bold text-emerald-900">ฐานข้อมูล <span id="auth-status-text" class="text-sm font-normal text-rose-500 ml-2">(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)</span></h2>
+                        <button onclick="syncToGoogleSheet()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-medium transition shadow-sm">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลไป Google Sheet
+                        </button>
+                    </div>
+                    <div class="table-container flex-1 bg-white rounded-lg border border-gray-200" id="table-raw-data"></div>
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-emerald-100 h-16 w-16 mb-4"></div>
+            <h2 class="text-center text-emerald-800 text-xl font-semibold tracking-wide" id="loading-text">กำลังโหลดข้อมูล...</h2>
+        </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-96 overflow-hidden transform transition-all border border-emerald-100">
+            <div class="bg-gradient-to-r from-[#064e3b] to-[#047857] p-5 text-center">
+                <i class="fa-solid fa-shield-halved text-3xl text-emerald-200 mb-2"></i>
+                <h2 class="text-white text-lg font-bold tracking-wide">เข้าสู่ระบบผู้ดูแลระบบ</h2>
+            </div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">ชื่อผู้ใช้งาน</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-500"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="username" class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" placeholder="Username">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">รหัสผ่าน</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-500"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="password" class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" placeholder="Password" onkeypress="if(event.key === 'Enter') handleLogin()">
+                    </div>
+                </div>
+                <div class="pt-2 flex gap-3">
+                    <button onclick="toggleAuthModal()" class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition font-medium">ยกเลิก</button>
+                    <button onclick="handleLogin()" class="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium shadow-sm">เข้าสู่ระบบ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // --- Configuration & State ---
+        // Obfuscated Base64 URL to prevent direct viewing of ID in plain text source
+        const _encUrl = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4czNoa1FRWVF0WHRnLTQ2RUdXZ3ZRN2E5U3dORVk5dnR3OEg1TDlXU29QRFFIQUdQamNiQUhBSmlVV2tOSFhkaGQvZXhlYw==";
+        const GAS_URL = atob(_encUrl);
+        
+        let globalData = [];
+        let isAuthenticated = false;
+        let activeTab = 'main';
+        let charts = {};
+
+        // ECharts Default Colors (Executive Green/Teal Palette + High Contrast for Data)
+        const chartColors = ['#059669', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#ef4444', '#84cc16'];
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            startClock();
+            initCharts();
+            fetchDataFromSheet();
+            
+            // Handle window resize for charts
+            window.addEventListener('resize', () => {
+                Object.values(charts).forEach(chart => chart && chart.resize());
+            });
+        });
+
+        function startClock() {
+            const timeEl = document.getElementById('current-time');
+            setInterval(() => {
+                const now = new Date();
+                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                timeEl.innerText = now.toLocaleDateString('th-TH', options);
+            }, 1000);
+        }
+
+        // --- Auth System ---
+        function toggleAuthModal() {
+            if (isAuthenticated) {
+                // Logout
+                isAuthenticated = false;
+                document.getElementById('authBtnText').innerText = 'ผู้ใช้งานทั่วไป (Log in)';
+                document.getElementById('authBtn').classList.replace('bg-rose-600', 'bg-emerald-700');
+                document.getElementById('authBtn').classList.replace('hover:bg-rose-700', 'hover:bg-emerald-800');
+                document.getElementById('authBtn').innerHTML = '<i class="fa-solid fa-lock"></i> <span id="authBtnText">ผู้ใช้งานทั่วไป (Log in)</span>';
+                document.getElementById('auth-status-text').innerText = '(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)';
+                document.getElementById('auth-status-text').classList.replace('text-emerald-600', 'text-rose-500');
+                
+                Swal.fire({icon: 'info', title: 'ออกจากระบบ', text: 'กลับสู่โหมดผู้ใช้งานทั่วไปซ่อนข้อมูลผู้ป่วย', timer: 1500, showConfirmButton: false});
+                renderRawData(); // Re-render table with masked data
+            } else {
+                // Show Login Modal
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('loginModal').classList.remove('hidden');
+            }
+        }
+
+        function handleLogin() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+
+            if (u === 'admin' && p === '1234') {
+                isAuthenticated = true;
+                document.getElementById('loginModal').classList.add('hidden');
+                
+                document.getElementById('authBtnText').innerText = 'ผู้ดูแลระบบ (Log out)';
+                document.getElementById('authBtn').classList.replace('bg-emerald-700', 'bg-rose-600');
+                document.getElementById('authBtn').classList.replace('hover:bg-emerald-800', 'hover:bg-rose-700');
+                document.getElementById('authBtn').innerHTML = '<i class="fa-solid fa-unlock"></i> <span id="authBtnText">ผู้ดูแลระบบ (Log out)</span>';
+                
+                document.getElementById('auth-status-text').innerText = '(แสดงข้อมูลแบบเต็ม)';
+                document.getElementById('auth-status-text').classList.replace('text-rose-500', 'text-emerald-600');
+
+                Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: 'แสดงรายชื่อและข้อมูลผู้ป่วยทั้งหมด', timer: 1500, showConfirmButton: false});
+                renderRawData(); // Re-render table with unmasked data
+            } else {
+                Swal.fire({icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง', text: 'กรุณาลองใหม่อีกครั้ง', confirmButtonColor: '#059669'});
+            }
+        }
+
+        // --- Data Fetching & Processing ---
+        function showLoading(text = 'กำลังโหลดข้อมูล...') {
+            document.getElementById('loading-text').innerText = text;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        async function fetchDataFromSheet() {
+            showLoading('กำลังเชื่อมต่อ Google Sheet...');
+            try {
+                // เพิ่ม redirect: 'follow' เพื่อรองรับการเปลี่ยนเส้นทางของ Google Apps Script
+                const response = await fetch(GAS_URL, { redirect: 'follow' });
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data && result.data.length > 0) {
+                    processData(result.data);
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ดึงข้อมูลจาก Google Sheet สำเร็จ', showConfirmButton: false, timer: 3000 });
+                } else {
+                    throw new Error('No data or invalid format');
+                }
+            } catch (error) {
+                console.error("Error fetching from GAS:", error);
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่สามารถเชื่อมต่อ Google Sheet ได้',
+                    html: 'เกิดปัญหาบล็อกโดยระบบรักษาความปลอดภัยบราวเซอร์ (CORS) หรือยังไม่มีข้อมูล<br><br><b>วิธีแก้ไขปัญหา:</b><br>กรุณาตรวจสอบให้แน่ใจว่าได้ไปที่ Apps Script แล้วกด Deploy แบบ Web App และตั้งค่า <b>Who has access เป็น "Anyone" (ทุกคน)</b><br><br><span class="text-sm text-gray-500">ในระหว่างนี้คุณสามารถกดอัปโหลดไฟล์ CSV เพื่อใช้งานชั่วคราวได้ครับ</span>',
+                    confirmButtonColor: '#059669'
+                });
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading('กำลังประมวลผลไฟล์ CSV...');
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Normalize keys (handle typo "ขื่อแพทย์" -> "ชื่อแพทย์" if exists)
+                    const cleanedData = results.data.map(row => {
+                        if(row['ขื่อแพทย์'] !== undefined) {
+                            row['ชื่อแพทย์'] = row['ขื่อแพทย์'];
+                        }
+                        return row;
+                    });
+                    
+                    processData(cleanedData);
+                    document.getElementById('csvFileInput').value = ''; // reset
+                    hideLoading();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'นำเข้าไฟล์สำเร็จ',
+                        text: `อัปเดตข้อมูลจำนวน ${cleanedData.length} รายการ\nหากต้องการบันทึกไปกูเกิ้ลชีท ให้กดปุ่มบันทึกในแท็บจัดการข้อมูล`,
+                        confirmButtonColor: '#059669'
+                    });
+                },
+                error: function(err) {
+                    hideLoading();
+                    Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาดในการอ่านไฟล์', text: err.message, confirmButtonColor: '#059669'});
+                }
+            });
+        }
+
+        async function syncToGoogleSheet() {
+            if (!isAuthenticated) {
+                Swal.fire({icon: 'warning', title: 'สิทธิ์ไม่เพียงพอ', text: 'กรุณาเข้าสู่ระบบก่อนทำการบันทึกข้อมูลทับบนเซิร์ฟเวอร์', confirmButtonColor: '#059669'});
+                return;
+            }
+
+            if(globalData.length === 0) {
+                 Swal.fire({icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่มีข้อมูลสำหรับบันทึก', confirmButtonColor: '#059669'});
+                 return;
+            }
+
+            const confirmResult = await Swal.fire({
+                title: 'ยืนยันการบันทึกทับข้อมูล?',
+                text: "ข้อมูลเดิมใน Google Sheet จะถูกลบและแทนที่ด้วยข้อมูลชุดปัจจุบัน!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#059669',
+                confirmButtonText: 'ใช่, บันทึกทับเลย!',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if(confirmResult.isConfirmed) {
+                showLoading('กำลังอัปโหลดข้อมูลไปยัง Google Sheet...');
+                try {
+                    // เปลี่ยน Content-Type เป็น text/plain เพื่อป้องกันการเกิด Preflight OPTIONS Request ของระบบ CORS
+                    const response = await fetch(GAS_URL, {
+                        method: 'POST',
+                        redirect: 'follow',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        },
+                        body: JSON.stringify({ action: 'overwrite', data: globalData })
+                    });
+                    const result = await response.json();
+                    if(result.status === 'success') {
+                        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', text: 'ข้อมูลถูกเขียนทับบน Google Sheet แล้ว', confirmButtonColor: '#059669'});
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch(err) {
+                     Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'โปรดตรวจสอบให้แน่ใจว่าได้นำโค้ด GAS ไป Deploy แบบ Web App และให้สิทธิ์ Who has access เป็น Anyone เรียบร้อยแล้ว (Error: ' + err.message + ')', confirmButtonColor: '#059669'});
+                } finally {
+                    hideLoading();
+                }
+            }
+        }
+
+        function processData(data) {
+            globalData = data;
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            if (!globalData || globalData.length === 0) return;
+
+            // Update KPIs
+            const total = globalData.length;
+            const sent = globalData.filter(d => d['สถานะ'] === 'ส่งเคลมแล้ว').length;
+            const pending = globalData.filter(d => d['สถานะ'] === 'รอเคลม').length;
+            const ward = globalData.filter(d => d['สถานะ'] === 'รอตึกส่งออก').length;
+
+            animateValue("kpi-total", total);
+            animateValue("kpi-sent", sent);
+            animateValue("kpi-pending", pending);
+            animateValue("kpi-ward", ward);
+
+            // Render Tabs
+            renderTabMain();
+            renderTabDoctor();
+            renderTabDoctorMasked(); // เรนเดอร์แท็บแพทย์ปกปิด
+            renderTabWard();
+            renderTabDept();
+            renderRawData();
+            
+            // Resize active chart to fix container widths
+            setTimeout(() => { Object.values(charts).forEach(c => c && c.resize()); }, 100);
+        }
+
+        function animateValue(id, end) {
+            const obj = document.getElementById(id);
+            if(!obj) return;
+            const start = parseInt(obj.innerText.replace(/,/g, '')) || 0;
+            const duration = 1000;
+            const range = end - start;
+            let current = start;
+            const increment = end > start ? Math.ceil(range / 20) : Math.floor(range / 20);
+            const stepTime = Math.abs(Math.floor(duration / 20));
+            
+            if(range === 0) { obj.innerText = end.toLocaleString('th-TH'); return;}
+
+            const timer = setInterval(function() {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                obj.innerText = current.toLocaleString('th-TH');
+            }, stepTime);
+        }
+
+        // --- View Logic & UI Control ---
+        function switchTab(tabId) {
+            // Hide all
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            activeTab = tabId;
+
+            // Resize charts in active tab
+            setTimeout(() => {
+                if(tabId === 'main') charts.mainBar.resize();
+                if(tabId === 'doctor') charts.docBar.resize();
+                if(tabId === 'doctor-masked') charts.docMaskedBar.resize();
+                if(tabId === 'ward') charts.wardDonut.resize();
+                if(tabId === 'dept') charts.deptTree.resize();
+            }, 50);
+        }
+
+        // --- Analytics & Rendering Functions ---
+
+        // Helper: Get unique sorted months
+        function getUniqueMonths(data, dateField) {
+            const months = [...new Set(data.map(item => item[dateField]).filter(v => v))];
+            return months.sort();
+        }
+
+        function initCharts() {
+            charts.mainBar = echarts.init(document.getElementById('chart-main-bar'));
+            charts.docBar = echarts.init(document.getElementById('chart-doc-bar'));
+            charts.docMaskedBar = echarts.init(document.getElementById('chart-doc-masked-bar')); // Init masked chart
+            charts.wardDonut = echarts.init(document.getElementById('chart-ward-donut'));
+            charts.deptTree = echarts.init(document.getElementById('chart-dept-tree'));
+        }
+
+        // TAB 1: Main (หน้าหลัก)
+        function renderTabMain() {
+            // Chart: Stacked Bar (Month vs Sent/Pending)
+            const months = getUniqueMonths(globalData, 'เดือนที่จำหน่าย');
+            const sentData = [];
+            const pendingData = [];
+
+            months.forEach(m => {
+                const monthData = globalData.filter(d => d['เดือนที่จำหน่าย'] === m);
+                sentData.push(monthData.filter(d => d['สถานะ'] === 'ส่งเคลมแล้ว').length);
+                pendingData.push(monthData.filter(d => d['สถานะ'] === 'รอเคลม').length);
+            });
+
+            const mainBarOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['ส่งเคลมแล้ว', 'รอเคลม'], bottom: 0 },
+                grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+                xAxis: { type: 'value' },
+                yAxis: { type: 'category', data: months, inverse: true },
+                color: ['#047857', '#fb923c'], // เขียวเข้ม ตัด ส้มสว่าง
+                series: [
+                    { name: 'ส่งเคลมแล้ว', type: 'bar', stack: 'total', label: { show: true, fontWeight: 'bold', fontSize: 14 }, data: sentData },
+                    { name: 'รอเคลม', type: 'bar', stack: 'total', label: { show: true, fontWeight: 'bold', fontSize: 14 }, data: pendingData }
+                ]
+            };
+            charts.mainBar.setOption(mainBarOption);
+
+            // Pivot Table: Sent Claims by Fund vs Month
+            const sentRecords = globalData.filter(d => d['สถานะ'] === 'ส่งเคลมแล้ว');
+            const funds = [...new Set(sentRecords.map(d => d['กองทุน']).filter(v=>v))];
+            
+            let tableHTML = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white"><tr><th class="px-4 py-2 border-r border-emerald-700">กองทุน</th>`;
+            months.forEach(m => tableHTML += `<th class="px-4 py-2 text-center border-r border-emerald-700">${m}</th>`);
+            tableHTML += `<th class="px-4 py-2 text-center">รวม (Total)</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            let colTotals = Array(months.length).fill(0);
+            let grandTotal = 0;
+
+            funds.forEach(fund => {
+                let rowTotal = 0;
+                tableHTML += `<tr class="hover:bg-emerald-50/50"><td class="px-4 py-2 font-medium border-r">${fund}</td>`;
+                
+                months.forEach((m, i) => {
+                    const count = sentRecords.filter(d => d['กองทุน'] === fund && d['เดือนที่จำหน่าย'] === m).length;
+                    rowTotal += count;
+                    colTotals[i] += count;
+                    tableHTML += `<td class="px-4 py-2 text-center border-r">${count > 0 ? count.toLocaleString() : '-'}</td>`;
+                });
+                
+                grandTotal += rowTotal;
+                tableHTML += `<td class="px-4 py-2 text-center font-bold bg-emerald-50 text-emerald-800">${rowTotal.toLocaleString()}</td></tr>`;
+            });
+
+            // Total Row
+            tableHTML += `<tr class="bg-emerald-100 font-bold text-emerald-900 border-t-2 border-emerald-500"><td class="px-4 py-3 border-r">รวมทั้งหมด</td>`;
+            colTotals.forEach(t => tableHTML += `<td class="px-4 py-3 text-center border-r">${t.toLocaleString()}</td>`);
+            tableHTML += `<td class="px-4 py-3 text-center">${grandTotal.toLocaleString()}</td></tr></tbody></table>`;
+            
+            document.getElementById('table-main-pivot').innerHTML = tableHTML;
+        }
+
+        // TAB 2: Doctor (แยกรายแพทย์ปกติ)
+        function renderTabDoctor() {
+            const pendingDocRecords = globalData.filter(d => d['สถานะชาร์ท'] === 'รอแพทย์สรุป');
+            
+            // Generate counts per doctor
+            const docMap = {};
+            pendingDocRecords.forEach(d => {
+                const docName = d['ชื่อแพทย์'] || d['ขื่อแพทย์'] || 'ไม่ระบุชื่อแพทย์';
+                if(!docMap[docName]) docMap[docName] = 0;
+                docMap[docName]++;
+            });
+
+            // Sort desc
+            const sortedDocs = Object.keys(docMap).sort((a,b) => docMap[b] - docMap[a]);
+            const topDocs = sortedDocs.slice(0, 15); // Show top 15 in chart for clarity
+            const topDocValues = topDocs.map(doc => docMap[doc]);
+
+            // Chart: Horizontal Bar (Doc vs Count)
+            const docBarOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '5%', top: '5%', containLabel: true },
+                xAxis: { type: 'value' },
+                yAxis: { type: 'category', data: topDocs.reverse(), axisLabel: { fontSize: 11 } },
+                series: [{
+                    name: 'จำนวน (ชาร์ท)',
+                    type: 'bar',
+                    label: { show: true, position: 'right' },
+                    itemStyle: { color: chartColors[2], borderRadius: [0, 4, 4, 0] },
+                    data: topDocValues.reverse()
+                }]
+            };
+            charts.docBar.setOption(docBarOption);
+
+            // Pivot Table: Doc vs Month (Count & Days > 7)
+            const months = getUniqueMonths(pendingDocRecords, 'เดือนที่จำหน่าย');
+            
+            let tableHTML = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white">
+                <tr><th rowspan="2" class="px-4 py-2 border-r border-emerald-700 align-middle">ชื่อแพทย์</th>`;
+            months.forEach(m => tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-r border-b border-emerald-700">${m}</th>`);
+            tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-b border-emerald-700 bg-emerald-900">รวมทั้งหมด</th></tr><tr>`;
+            
+            months.forEach(() => tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-700">จำนวน</th><th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-rose-800/80">> 7 วัน</th>`);
+            tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-900">จำนวน</th><th class="px-2 py-1 text-center text-xs bg-rose-900">> 7 วัน</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            sortedDocs.forEach(doc => {
+                let rowTotalCount = 0;
+                let rowTotalOver7 = 0;
+                tableHTML += `<tr class="hover:bg-emerald-50/50"><td class="px-4 py-2 font-medium border-r text-xs truncate max-w-[150px]" title="${doc}">${doc}</td>`;
+                
+                months.forEach(m => {
+                    const records = pendingDocRecords.filter(d => (d['ชื่อแพทย์'] || d['ขื่อแพทย์'] || 'ไม่ระบุชื่อแพทย์') === doc && d['เดือนที่จำหน่าย'] === m);
+                    const count = records.length;
+                    const over7 = records.filter(d => parseInt(d['จำนวนวัน']) > 7).length;
+                    
+                    rowTotalCount += count;
+                    rowTotalOver7 += over7;
+
+                    tableHTML += `<td class="px-2 py-2 text-center border-r">${count > 0 ? count : '-'}</td>
+                                  <td class="px-2 py-2 text-center border-r ${over7 > 0 ? 'text-rose-600 font-bold bg-rose-50' : 'text-gray-400'}">${over7 > 0 ? over7 : '-'}</td>`;
+                });
+                tableHTML += `<td class="px-2 py-2 text-center font-bold bg-emerald-50 border-r">${rowTotalCount}</td>
+                              <td class="px-2 py-2 text-center font-bold bg-rose-50 text-rose-600">${rowTotalOver7}</td></tr>`;
+            });
+
+            tableHTML += `</tbody></table>`;
+            document.getElementById('table-doc-pivot').innerHTML = tableHTML;
+        }
+
+        // TAB 2.1: Doctor (ปกปิดชื่อ)
+        function renderTabDoctorMasked() {
+            const pendingDocRecords = globalData.filter(d => d['สถานะชาร์ท'] === 'รอแพทย์สรุป');
+            
+            // Map Name to Masked String && Generate Counts
+            const docMap = {};
+            const maskedNameMap = {};
+            let maskCounter = 1;
+
+            pendingDocRecords.forEach(d => {
+                const docName = d['ชื่อแพทย์'] || d['ขื่อแพทย์'] || 'ไม่ระบุชื่อแพทย์';
+                // ถ้ายังไม่เคยเจอชื่อแพทย์คนนี้ ให้สร้างรหัสปกปิดให้
+                if (!maskedNameMap[docName]) {
+                    if (docName === 'ไม่ระบุชื่อแพทย์') {
+                        maskedNameMap[docName] = 'ไม่ระบุชื่อแพทย์';
+                    } else {
+                        // รูปแบบการปกปิดชื่อ
+                        maskedNameMap[docName] = `*** (แพทย์ ${maskCounter.toString().padStart(2, '0')})`;
+                        maskCounter++;
+                    }
+                }
+                const maskedName = maskedNameMap[docName];
+                
+                if(!docMap[maskedName]) docMap[maskedName] = 0;
+                docMap[maskedName]++;
+            });
+
+            // Sort desc using masked names
+            const sortedMaskedDocs = Object.keys(docMap).sort((a,b) => docMap[b] - docMap[a]);
+            const topMaskedDocs = sortedMaskedDocs.slice(0, 15);
+            const topMaskedDocValues = topMaskedDocs.map(doc => docMap[doc]);
+
+            // Chart: Horizontal Bar (Masked Doc vs Count)
+            const docMaskedBarOption = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '5%', top: '5%', containLabel: true },
+                xAxis: { type: 'value' },
+                yAxis: { type: 'category', data: topMaskedDocs.reverse(), axisLabel: { fontSize: 11 } },
+                series: [{
+                    name: 'จำนวน (ชาร์ท)',
+                    type: 'bar',
+                    label: { show: true, position: 'right' },
+                    itemStyle: { color: chartColors[3], borderRadius: [0, 4, 4, 0] }, // ใช้สีที่ต่างจากตารางปกติเล็กน้อย (สีชมพูเข้ม)
+                    data: topMaskedDocValues.reverse()
+                }]
+            };
+            charts.docMaskedBar.setOption(docMaskedBarOption);
+
+            // Pivot Table: Masked Doc vs Month (Count & Days > 7)
+            const months = getUniqueMonths(pendingDocRecords, 'เดือนที่จำหน่าย');
+            
+            let tableHTML = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white">
+                <tr><th rowspan="2" class="px-4 py-2 border-r border-emerald-700 align-middle">ชื่อแพทย์ (ปกปิด)</th>`;
+            months.forEach(m => tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-r border-b border-emerald-700">${m}</th>`);
+            tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-b border-emerald-700 bg-emerald-900">รวมทั้งหมด</th></tr><tr>`;
+            
+            months.forEach(() => tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-700">จำนวน</th><th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-rose-800/80">> 7 วัน</th>`);
+            tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-900">จำนวน</th><th class="px-2 py-1 text-center text-xs bg-rose-900">> 7 วัน</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            sortedMaskedDocs.forEach(maskedDoc => {
+                let rowTotalCount = 0;
+                let rowTotalOver7 = 0;
+                tableHTML += `<tr class="hover:bg-emerald-50/50"><td class="px-4 py-2 font-medium border-r text-xs truncate max-w-[150px] text-gray-600" title="${maskedDoc}">${maskedDoc}</td>`;
+                
+                months.forEach(m => {
+                    // Filter matching masked name
+                    const records = pendingDocRecords.filter(d => {
+                        const originalName = d['ชื่อแพทย์'] || d['ขื่อแพทย์'] || 'ไม่ระบุชื่อแพทย์';
+                        return maskedNameMap[originalName] === maskedDoc && d['เดือนที่จำหน่าย'] === m;
+                    });
+                    const count = records.length;
+                    const over7 = records.filter(d => parseInt(d['จำนวนวัน']) > 7).length;
+                    
+                    rowTotalCount += count;
+                    rowTotalOver7 += over7;
+
+                    tableHTML += `<td class="px-2 py-2 text-center border-r">${count > 0 ? count : '-'}</td>
+                                  <td class="px-2 py-2 text-center border-r ${over7 > 0 ? 'text-rose-600 font-bold bg-rose-50' : 'text-gray-400'}">${over7 > 0 ? over7 : '-'}</td>`;
+                });
+                tableHTML += `<td class="px-2 py-2 text-center font-bold bg-emerald-50 border-r">${rowTotalCount}</td>
+                              <td class="px-2 py-2 text-center font-bold bg-rose-50 text-rose-600">${rowTotalOver7}</td></tr>`;
+            });
+
+            tableHTML += `</tbody></table>`;
+            document.getElementById('table-doc-masked-pivot').innerHTML = tableHTML;
+        }
+
+        // TAB 3: Ward (แยกรายตึก)
+        function renderTabWard() {
+            const wardRecords = globalData.filter(d => d['สถานะ'] === 'รอตึกส่งออก');
+            
+            // Chart: Donut
+            const wardMap = {};
+            wardRecords.forEach(d => {
+                const ward = d['ตึก'] || 'ไม่ระบุตึก';
+                wardMap[ward] = (wardMap[ward] || 0) + 1;
+            });
+            
+            const donutData = Object.keys(wardMap).map(key => ({name: key, value: wardMap[key]})).sort((a,b)=>b.value - a.value);
+
+            const wardDonutOption = {
+                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+                legend: { 
+                    type: 'scroll', 
+                    orient: 'vertical', 
+                    right: 0, 
+                    top: 20, 
+                    bottom: 20,
+                    textStyle: { fontSize: 11, color: '#4b5563' },
+                    itemWidth: 12,
+                    itemHeight: 12
+                },
+                color: chartColors, // ชุดสีตัดกัน
+                series: [{
+                    name: 'จำนวน', type: 'pie', radius: ['50%', '80%'], center: ['35%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+                    label: { show: true, formatter: '{c}', fontWeight: 'bold', fontSize: 13 }, // แสดงแค่ตัวเลข
+                    emphasis: { label: { show: true, fontSize: '15', fontWeight: 'bold' } },
+                    labelLine: { show: true, length: 8, length2: 10 },
+                    data: donutData
+                }]
+            };
+            charts.wardDonut.setOption(wardDonutOption);
+
+            // Pivot Table: Ward vs Month (Count & Days > 3)
+            const months = getUniqueMonths(wardRecords, 'เดือนที่จำหน่าย');
+            const sortedWards = Object.keys(wardMap).sort();
+
+            let tableHTML = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white">
+                <tr><th rowspan="2" class="px-4 py-2 border-r border-emerald-700 align-middle">รายตึก</th>`;
+            months.forEach(m => tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-r border-b border-emerald-700">${m}</th>`);
+            tableHTML += `<th colspan="2" class="px-2 py-1 text-center border-b border-emerald-700 bg-emerald-900">รวมทั้งหมด</th></tr><tr>`;
+            
+            months.forEach(() => tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-700">จำนวน</th><th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-amber-600/90">> 3 วัน</th>`);
+            tableHTML += `<th class="px-2 py-1 text-center border-r border-emerald-700 text-xs bg-emerald-900">จำนวน</th><th class="px-2 py-1 text-center text-xs bg-amber-700">> 3 วัน</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            let colTotalsCount = Array(months.length).fill(0);
+            let colTotalsOver3 = Array(months.length).fill(0);
+            let grandTotalCount = 0;
+            let grandTotalOver3 = 0;
+
+            sortedWards.forEach(ward => {
+                let rowTotalCount = 0;
+                let rowTotalOver3 = 0;
+                tableHTML += `<tr class="hover:bg-emerald-50/50"><td class="px-4 py-2 font-medium border-r whitespace-nowrap">${ward}</td>`;
+                
+                months.forEach((m, i) => {
+                    const records = wardRecords.filter(d => (d['ตึก'] || 'ไม่ระบุตึก') === ward && d['เดือนที่จำหน่าย'] === m);
+                    const count = records.length;
+                    const over3 = records.filter(d => parseInt(d['จำนวนวัน']) > 3).length;
+                    
+                    rowTotalCount += count;
+                    rowTotalOver3 += over3;
+                    colTotalsCount[i] += count;
+                    colTotalsOver3[i] += over3;
+
+                    tableHTML += `<td class="px-2 py-2 text-center border-r">${count > 0 ? count : '-'}</td>
+                                  <td class="px-2 py-2 text-center border-r ${over3 > 0 ? 'text-amber-600 font-bold bg-amber-50' : 'text-gray-400'}">${over3 > 0 ? over3 : '-'}</td>`;
+                });
+                grandTotalCount += rowTotalCount;
+                grandTotalOver3 += rowTotalOver3;
+
+                tableHTML += `<td class="px-2 py-2 text-center font-bold bg-emerald-50 border-r">${rowTotalCount}</td>
+                              <td class="px-2 py-2 text-center font-bold bg-amber-50 text-amber-600">${rowTotalOver3}</td></tr>`;
+            });
+
+            // Total Row
+            tableHTML += `<tr class="bg-emerald-100 font-bold text-emerald-900 border-t-2 border-emerald-500"><td class="px-4 py-3 border-r">รวมทั้งหมด</td>`;
+            months.forEach((m, i) => {
+                tableHTML += `<td class="px-2 py-3 text-center border-r">${colTotalsCount[i] > 0 ? colTotalsCount[i] : '-'}</td>
+                              <td class="px-2 py-3 text-center border-r ${colTotalsOver3[i] > 0 ? 'text-amber-700' : 'text-gray-500'}">${colTotalsOver3[i] > 0 ? colTotalsOver3[i] : '-'}</td>`;
+            });
+            tableHTML += `<td class="px-2 py-3 text-center border-r">${grandTotalCount}</td>
+                          <td class="px-2 py-3 text-center text-amber-700">${grandTotalOver3}</td></tr>`;
+
+            tableHTML += `</tbody></table>`;
+            document.getElementById('table-ward-pivot').innerHTML = tableHTML;
+        }
+
+        // TAB 4: Dept (แยกตามแผนกที่ยืม)
+        function renderTabDept() {
+            const pendingRecords = globalData.filter(d => d['สถานะ'] === 'รอเคลม');
+            
+            // Chart: Treemap (สถานะชาร์ท)
+            const statMap = {};
+            pendingRecords.forEach(d => {
+                const stat = d['สถานะชาร์ท'] || 'ไม่ระบุ';
+                statMap[stat] = (statMap[stat] || 0) + 1;
+            });
+
+            const treeData = Object.keys(statMap).map(key => ({name: key, value: statMap[key]}));
+
+            const treeOption = {
+                tooltip: { formatter: '{b}: {c} ชาร์ท' },
+                color: chartColors, // ชุดสีตัดกัน
+                series: [{
+                    type: 'treemap',
+                    width: '100%', height: '100%',
+                    roam: false,
+                    nodeClick: false,
+                    breadcrumb: { show: false },
+                    itemStyle: { borderColor: '#fff', borderWidth: 2, gapWidth: 2 }, // เพิ่มขอบให้ชัดเจนขึ้น
+                    label: { show: true, formatter: '{b}\n\n{c} ชาร์ท', fontSize: 14, fontWeight: 'bold' },
+                    data: treeData
+                }]
+            };
+            charts.deptTree.setOption(treeOption);
+
+            // Pivot Table: สถานะชาร์ท vs Month
+            const months = getUniqueMonths(pendingRecords, 'เดือนที่จำหน่าย');
+            const sortedStats = Object.keys(statMap).sort((a,b)=>statMap[b] - statMap[a]);
+
+            let tableHTML = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white"><tr><th class="px-4 py-2 border-r border-emerald-700">สถานะชาร์ท (รอเคลม)</th>`;
+            months.forEach(m => tableHTML += `<th class="px-4 py-2 text-center border-r border-emerald-700">${m}</th>`);
+            tableHTML += `<th class="px-4 py-2 text-center">รวม (Total)</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            let colTotals = Array(months.length).fill(0);
+            let grandTotal = 0;
+
+            sortedStats.forEach(stat => {
+                let rowTotal = 0;
+                tableHTML += `<tr class="hover:bg-emerald-50/50"><td class="px-4 py-2 font-medium border-r">${stat}</td>`;
+                
+                months.forEach((m, i) => {
+                    const count = pendingRecords.filter(d => (d['สถานะชาร์ท'] || 'ไม่ระบุ') === stat && d['เดือนที่จำหน่าย'] === m).length;
+                    rowTotal += count;
+                    colTotals[i] += count;
+                    tableHTML += `<td class="px-4 py-2 text-center border-r">${count > 0 ? count : '-'}</td>`;
+                });
+                
+                grandTotal += rowTotal;
+                tableHTML += `<td class="px-4 py-2 text-center font-bold bg-emerald-50 text-emerald-800">${rowTotal}</td></tr>`;
+            });
+
+            // Total Row
+            tableHTML += `<tr class="bg-emerald-100 font-bold text-emerald-900 border-t-2 border-emerald-500"><td class="px-4 py-3 border-r">รวมทั้งหมด</td>`;
+            colTotals.forEach(t => tableHTML += `<td class="px-4 py-3 text-center border-r">${t}</td>`);
+            tableHTML += `<td class="px-4 py-3 text-center">${grandTotal}</td></tr></tbody></table>`;
+            
+            document.getElementById('table-dept-pivot').innerHTML = tableHTML;
+        }
+
+        // TAB 5: Raw Data View
+        function renderRawData() {
+            if (!globalData || globalData.length === 0) return;
+
+            // Only show max 100 rows for performance in UI, unless filtering
+            const displayData = globalData.slice(0, 100); 
+            const headers = Object.keys(displayData[0]);
+
+            let html = `<table class="min-w-full text-xs text-left whitespace-nowrap"><thead class="bg-gray-800 text-white"><tr>`;
+            html += `<th class="px-3 py-2">#</th>`;
+            headers.forEach(h => html += `<th class="px-3 py-2 border-l border-gray-600">${h}</th>`);
+            html += `</tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            displayData.forEach((row, index) => {
+                html += `<tr class="hover:bg-gray-50"><td class="px-3 py-1 bg-gray-100 text-center font-mono">${index + 1}</td>`;
+                headers.forEach(h => {
+                    let val = row[h];
+                    // Masking logic
+                    if (!isAuthenticated && (h.toLowerCase() === 'hn' || h.toLowerCase() === 'an' || h === 'ชื่อแพทย์' || h === 'ขื่อแพทย์')) {
+                        val = '*** (ซ่อน) ***';
+                    }
+                    html += `<td class="px-3 py-1 border-l">${val !== undefined ? val : ''}</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
+            if (globalData.length > 100) {
+                html += `<div class="p-3 text-center text-sm text-gray-500 bg-gray-50 border-t">แสดง 100 รายการแรกจากทั้งหมด ${globalData.length.toLocaleString()} รายการ</div>`;
+            }
+            
+            document.getElementById('table-raw-data').innerHTML = html;
+        }
+
+        // --- Print Slide Function ---
+        function printTabAsSlide(tabKey, titleText) {
+            let chartImgObj = '';
+            let chartInstance = null;
+            let tableHtml = '';
+
+            if(tabKey === 'main') { chartInstance = charts.mainBar; tableHtml = document.getElementById('table-main-pivot').innerHTML; }
+            else if(tabKey === 'doctor') { chartInstance = charts.docBar; tableHtml = document.getElementById('table-doc-pivot').innerHTML; }
+            else if(tabKey === 'doctor-masked') { chartInstance = charts.docMaskedBar; tableHtml = document.getElementById('table-doc-masked-pivot').innerHTML; }
+            else if(tabKey === 'ward') { chartInstance = charts.wardDonut; tableHtml = document.getElementById('table-ward-pivot').innerHTML; }
+            else if(tabKey === 'dept') { chartInstance = charts.deptTree; tableHtml = document.getElementById('table-dept-pivot').innerHTML; }
+
+            // Export high-quality image of the chart
+            if(chartInstance) {
+                chartImgObj = chartInstance.getDataURL({ type: 'png', backgroundColor: '#fff', pixelRatio: 2 });
+            }
+
+            const selectedMonth = document.getElementById('monthInput').value || '(ข้อมูลทั้งหมด)';
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Print Slide - ${titleText}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4 landscape; margin: 10mm; }
+                        body { 
+                            font-family: 'Sarabun', sans-serif; 
+                            margin: 0; padding: 0; box-sizing: border-box;
+                            color: #1f2937;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        .slide-container {
+                            width: 100%;
+                            height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            page-break-after: avoid;
+                        }
+                        .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #10b981; padding-bottom: 10px; }
+                        .header h1 { font-size: 18pt; margin: 0 0 5px 0; color: #064e3b; }
+                        .header p { font-size: 11pt; margin: 0; color: #047857; font-weight: 500; }
+                        
+                        .content-grid {
+                            display: flex; flex-direction: row; gap: 20px; flex: 1; align-items: flex-start;
+                        }
+                        .chart-section {
+                            flex: 1; display: flex; align-items: center; justify-content: center; width: 50%;
+                        }
+                        .chart-section img {
+                            width: 100%; max-height: 150mm; object-fit: contain; 
+                        }
+                        .table-section {
+                            flex: 1; width: 50%;
+                        }
+                        table { width: 100%; border-collapse: collapse; font-size: 8.5pt; background-color: #fff; }
+                        th, td { border: 1px solid #d1d5db; padding: 5px 3px; text-align: center; vertical-align: middle; }
+                        td:first-child { text-align: left; }
+                        th { background-color: #064e3b !important; color: #fff !important; font-weight: bold; }
+                        
+                        tr:nth-child(even) td { background-color: #f9fafb !important; }
+                        .font-bold { font-weight: bold; }
+                        .text-rose-600 { color: #e11d48 !important; }
+                        .text-amber-600 { color: #d97706 !important; }
+                        .text-amber-700 { color: #b45309 !important; }
+                        .text-emerald-800 { color: #065f46 !important; }
+                        .bg-emerald-50, .bg-emerald-50\\/50 { background-color: #ecfdf5 !important; }
+                        .bg-emerald-100 { background-color: #d1fae5 !important; }
+                        .bg-rose-50 { background-color: #fff1f2 !important; }
+                        .bg-amber-50 { background-color: #fffbeb !important; }
+                        
+                        /* Fix table heights for slide */
+                        .truncate { white-space: normal; word-break: break-word;} 
+                    </style>
+                </head>
+                <body>
+                    <div class="slide-container">
+                        <div class="header">
+                            <h1>${titleText}</h1>
+                            <p>เดือนที่รายงาน: ${selectedMonth}</p>
+                        </div>
+                        <div class="content-grid">
+                            <div class="chart-section">
+                                <img src="${chartImgObj}" alt="Chart Image"/>
+                            </div>
+                            <div class="table-section">
+                                ${tableHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                        setTimeout(() => { window.print(); }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // --- Print Function (ตาราง A4 แนวตั้ง - หมอปกติ) ---
+        function printDoctorTable() {
+            const tableContent = document.getElementById('table-doc-pivot').innerHTML;
+            if (!tableContent) {
+                Swal.fire({icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลตารางสำหรับพิมพ์'});
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>รายงานชาร์ทสถานะรอแพทย์สรุป</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Sarabun', sans-serif; font-size: 10pt; color: #000; line-height: 1.4; padding: 0; margin: 0; }
+                        .header { text-align: center; margin-bottom: 15px; }
+                        .header h1 { font-size: 14pt; margin: 0 0 5px 0; color: #000; }
+                        .header p { font-size: 9pt; margin: 0; color: #666; }
+                        
+                        /* Table Print Layout */
+                        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 8.5pt; }
+                        th, td { border: 1px solid #333; padding: 4px 2px; text-align: center; vertical-align: middle; }
+                        td:first-child { text-align: left; }
+                        
+                        /* Clean headers for print */
+                        th, thead tr { background-color: #f3f4f6 !important; color: #000 !important; font-weight: bold; }
+                        
+                        /* Text styling */
+                        .text-rose-600 { color: #e11d48 !important; font-weight: bold; }
+                        .text-gray-400 { color: #9ca3af !important; }
+                        .font-bold { font-weight: bold; }
+                        
+                        /* Clean backgrounds */
+                        .bg-emerald-50, .bg-emerald-50\\/50, .bg-rose-50, .bg-rose-800\\/80, .bg-emerald-700, .bg-emerald-800, .bg-emerald-900, .bg-rose-900 { 
+                            background-color: transparent !important; color: #000 !important; 
+                        }
+                        .truncate { white-space: normal; } 
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>รายงานสรุปสถานะชาร์ท "รอแพทย์สรุป" (แยกรายแพทย์)</h1>
+                        <p>ข้อมูลอัปเดต ณ วันที่: ${dateStr}</p>
+                    </div>
+                    ${tableContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+        }
+
+        // --- Print Function (ตาราง A4 แนวตั้ง - หมอปกปิด) ---
+        function printDoctorMaskedTable() {
+            const tableContent = document.getElementById('table-doc-masked-pivot').innerHTML;
+            if (!tableContent) {
+                Swal.fire({icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลตารางสำหรับพิมพ์'});
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>รายงานชาร์ทสถานะรอแพทย์สรุป (ปกปิดชื่อ)</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Sarabun', sans-serif; font-size: 10pt; color: #000; line-height: 1.4; padding: 0; margin: 0; }
+                        .header { text-align: center; margin-bottom: 15px; }
+                        .header h1 { font-size: 14pt; margin: 0 0 5px 0; color: #000; }
+                        .header p { font-size: 9pt; margin: 0; color: #666; }
+                        
+                        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 8.5pt; }
+                        th, td { border: 1px solid #333; padding: 4px 2px; text-align: center; vertical-align: middle; }
+                        td:first-child { text-align: left; }
+                        th, thead tr { background-color: #f3f4f6 !important; color: #000 !important; font-weight: bold; }
+                        
+                        .text-rose-600 { color: #e11d48 !important; font-weight: bold; }
+                        .text-gray-400 { color: #9ca3af !important; }
+                        .font-bold { font-weight: bold; }
+                        .bg-emerald-50, .bg-emerald-50\\/50, .bg-rose-50, .bg-rose-800\\/80, .bg-emerald-700, .bg-emerald-800, .bg-emerald-900, .bg-rose-900 { 
+                            background-color: transparent !important; color: #000 !important; 
+                        }
+                        .truncate { white-space: normal; } 
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>รายงานสรุปสถานะชาร์ท "รอแพทย์สรุป" (แบบปกปิดชื่อแพทย์)</h1>
+                        <p>ข้อมูลอัปเดต ณ วันที่: ${dateStr}</p>
+                    </div>
+                    ${tableContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+        }
+
+    </script>
+</body>
+</html>
