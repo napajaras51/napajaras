@@ -218,6 +218,17 @@
                         <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-doc-pivot"></div>
                     </div>
                 </div>
+                
+                <!-- NEW: Detail Table Doc > 7 days -->
+                <div class="glass-card p-5 mt-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
+                        <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-list-check mr-2 text-emerald-600"></i>รายละเอียดคนไข้: รอแพทย์สรุป (> 7 วัน) <span class="auth-status-label text-sm font-normal text-rose-500 ml-2">(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)</span></h2>
+                        <button onclick="printDocDetailTable()" class="text-gray-500 hover:text-emerald-800 hover:bg-emerald-50 border border-gray-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 transition duration-200">
+                            <i class="fa-solid fa-print"></i> พิมพ์รายละเอียด
+                        </button>
+                    </div>
+                    <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-doc-detail"></div>
+                </div>
             </div>
 
             <!-- Tab 2.1: Doctor (Masked) -->
@@ -263,6 +274,17 @@
                         <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-ward-pivot"></div>
                     </div>
                 </div>
+
+                <!-- NEW: Detail Table Ward Pending -->
+                <div class="glass-card p-5 mt-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
+                        <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-list-check mr-2 text-emerald-600"></i>รายละเอียดคนไข้: รอตึกส่งออก <span class="auth-status-label text-sm font-normal text-rose-500 ml-2">(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)</span></h2>
+                        <button onclick="printWardDetailTable()" class="text-gray-500 hover:text-emerald-800 hover:bg-emerald-50 border border-gray-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 transition duration-200">
+                            <i class="fa-solid fa-print"></i> พิมพ์รายละเอียด
+                        </button>
+                    </div>
+                    <div class="table-container flex-1 bg-white rounded-lg border border-gray-100" id="table-ward-detail"></div>
+                </div>
             </div>
 
             <!-- Tab 4: Dept -->
@@ -289,7 +311,7 @@
             <div id="tab-data" class="tab-pane hidden">
                 <div class="glass-card p-5 flex flex-col h-[calc(100vh-220px)]">
                     <div class="flex justify-between items-center mb-4 border-b border-emerald-100 pb-2">
-                        <h2 class="text-lg font-bold text-emerald-900">ฐานข้อมูล <span id="auth-status-text" class="text-sm font-normal text-rose-500 ml-2">(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)</span></h2>
+                        <h2 class="text-lg font-bold text-emerald-900">ฐานข้อมูล <span id="auth-status-text" class="auth-status-label text-sm font-normal text-rose-500 ml-2">(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)</span></h2>
                         <button onclick="syncToGoogleSheet()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-medium transition shadow-sm">
                             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลไป Google Sheet
                         </button>
@@ -382,11 +404,17 @@
                 document.getElementById('authBtn').classList.replace('bg-rose-600', 'bg-emerald-700');
                 document.getElementById('authBtn').classList.replace('hover:bg-rose-700', 'hover:bg-emerald-800');
                 document.getElementById('authBtn').innerHTML = '<i class="fa-solid fa-lock"></i> <span id="authBtnText">ผู้ใช้งานทั่วไป (Log in)</span>';
-                document.getElementById('auth-status-text').innerText = '(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)';
-                document.getElementById('auth-status-text').classList.replace('text-emerald-600', 'text-rose-500');
+                
+                // อัปเดต Label การปกปิดข้อมูลทุกตาราง
+                document.querySelectorAll('.auth-status-label').forEach(el => {
+                    el.innerText = '(ปิดบังข้อมูลผู้ป่วย - กรุณาเข้าสู่ระบบ)';
+                    el.classList.replace('text-emerald-600', 'text-rose-500');
+                });
                 
                 Swal.fire({icon: 'info', title: 'ออกจากระบบ', text: 'กลับสู่โหมดผู้ใช้งานทั่วไปซ่อนข้อมูลผู้ป่วย', timer: 1500, showConfirmButton: false});
                 renderRawData(); // Re-render table with masked data
+                renderDocDetailTable(); // Re-render detail masked
+                renderWardDetailTable(); // Re-render detail masked
             } else {
                 // Show Login Modal
                 document.getElementById('username').value = '';
@@ -408,11 +436,16 @@
                 document.getElementById('authBtn').classList.replace('hover:bg-emerald-800', 'hover:bg-rose-700');
                 document.getElementById('authBtn').innerHTML = '<i class="fa-solid fa-unlock"></i> <span id="authBtnText">ผู้ดูแลระบบ (Log out)</span>';
                 
-                document.getElementById('auth-status-text').innerText = '(แสดงข้อมูลแบบเต็ม)';
-                document.getElementById('auth-status-text').classList.replace('text-rose-500', 'text-emerald-600');
+                // อัปเดต Label เปิดเผยข้อมูลทุกตาราง
+                document.querySelectorAll('.auth-status-label').forEach(el => {
+                    el.innerText = '(แสดงข้อมูลแบบเต็ม)';
+                    el.classList.replace('text-rose-500', 'text-emerald-600');
+                });
 
                 Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: 'แสดงรายชื่อและข้อมูลผู้ป่วยทั้งหมด', timer: 1500, showConfirmButton: false});
                 renderRawData(); // Re-render table with unmasked data
+                renderDocDetailTable(); // Re-render detail unmasked
+                renderWardDetailTable(); // Re-render detail unmasked
             } else {
                 Swal.fire({icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง', text: 'กรุณาลองใหม่อีกครั้ง', confirmButtonColor: '#059669'});
             }
@@ -560,8 +593,10 @@
             // Render Tabs
             renderTabMain();
             renderTabDoctor();
-            renderTabDoctorMasked(); // เรนเดอร์แท็บแพทย์ปกปิด
+            renderTabDoctorMasked();
+            renderDocDetailTable(); // ตารางรายละเอียดแพทย์ใหม่
             renderTabWard();
+            renderWardDetailTable(); // ตารางรายละเอียดตึกใหม่
             renderTabDept();
             renderRawData();
             
@@ -844,6 +879,50 @@
             document.getElementById('table-doc-masked-pivot').innerHTML = tableHTML;
         }
 
+        // NEW: Doctor Detail Table (> 7 days)
+        function renderDocDetailTable() {
+            const pendingDocRecords = globalData.filter(d => d['สถานะชาร์ท'] === 'รอแพทย์สรุป' && parseInt(d['จำนวนวัน']) > 7);
+            const docMap = {};
+            pendingDocRecords.forEach(d => {
+                let docName = d['ชื่อแพทย์'] || d['ขื่อแพทย์'] || 'ไม่ระบุชื่อแพทย์';
+                if(!docMap[docName]) docMap[docName] = [];
+                docMap[docName].push(d);
+            });
+
+            const sortedDocs = Object.keys(docMap).sort();
+
+            let html = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white">
+                <tr><th class="px-4 py-2 w-1/5">AN</th><th class="px-4 py-2 w-1/5">HN</th><th class="px-4 py-2">วันที่ Admit</th><th class="px-4 py-2">วันที่จำหน่าย</th><th class="px-4 py-2 text-center w-24">จำนวนวัน</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            sortedDocs.forEach(doc => {
+                const records = docMap[doc];
+                html += `<tr class="bg-emerald-100/80"><td colspan="5" class="px-4 py-2 font-bold text-emerald-900 border-l-4 border-emerald-600"><i class="fa-solid fa-user-doctor mr-2 text-emerald-700"></i>แพทย์: ${doc}</td></tr>`;
+                
+                records.forEach(row => {
+                    let an = row['an'] || row['AN'] || row['An'] || '';
+                    let hn = row['hn'] || row['HN'] || row['Hn'] || '';
+                    if (!isAuthenticated) {
+                        an = '*** (ซ่อน) ***';
+                        hn = '*** (ซ่อน) ***';
+                    }
+                    html += `<tr class="hover:bg-emerald-50/50">
+                        <td class="px-4 py-1.5 pl-8 text-gray-700 font-mono">${an}</td>
+                        <td class="px-4 py-1.5 text-gray-700 font-mono">${hn}</td>
+                        <td class="px-4 py-1.5 text-gray-600">${row['วันที่ Admit'] || ''}</td>
+                        <td class="px-4 py-1.5 text-gray-600">${row['วันที่จำหน่าย'] || ''}</td>
+                        <td class="px-4 py-1.5 text-center text-rose-600 font-bold">${row['จำนวนวัน']}</td>
+                    </tr>`;
+                });
+                html += `<tr class="bg-emerald-50 border-b border-emerald-200"><td colspan="4" class="px-4 py-2 text-right font-bold text-emerald-800">รวมจำนวนชาร์ทของ ${doc}:</td><td class="px-4 py-2 text-center font-bold text-rose-600">${records.length}</td></tr>`;
+            });
+
+            if(sortedDocs.length === 0) html += `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">ไม่มีข้อมูล</td></tr>`;
+            html += `</tbody></table>`;
+            
+            const el = document.getElementById('table-doc-detail');
+            if(el) el.innerHTML = html;
+        }
+
         // TAB 3: Ward (แยกรายตึก)
         function renderTabWard() {
             const wardRecords = globalData.filter(d => d['สถานะ'] === 'รอตึกส่งออก');
@@ -935,6 +1014,51 @@
 
             tableHTML += `</tbody></table>`;
             document.getElementById('table-ward-pivot').innerHTML = tableHTML;
+        }
+
+        // NEW: Ward Detail Table
+        function renderWardDetailTable() {
+            const wardRecords = globalData.filter(d => d['สถานะ'] === 'รอตึกส่งออก');
+            const wardMap = {};
+            wardRecords.forEach(d => {
+                let wardName = d['ตึก'] || 'ไม่ระบุตึก';
+                if(!wardMap[wardName]) wardMap[wardName] = [];
+                wardMap[wardName].push(d);
+            });
+
+            const sortedWards = Object.keys(wardMap).sort();
+
+            let html = `<table class="min-w-full text-sm text-left"><thead class="bg-emerald-800 text-white">
+                <tr><th class="px-4 py-2 w-1/5">AN</th><th class="px-4 py-2 w-1/5">HN</th><th class="px-4 py-2">วันที่ Admit</th><th class="px-4 py-2">วันที่จำหน่าย</th><th class="px-4 py-2 text-center w-24">จำนวนวัน</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+
+            sortedWards.forEach(ward => {
+                const records = wardMap[ward];
+                html += `<tr class="bg-emerald-100/80"><td colspan="5" class="px-4 py-2 font-bold text-emerald-900 border-l-4 border-emerald-600"><i class="fa-solid fa-building mr-2 text-emerald-700"></i>ตึก: ${ward}</td></tr>`;
+                
+                records.forEach(row => {
+                    let an = row['an'] || row['AN'] || row['An'] || '';
+                    let hn = row['hn'] || row['HN'] || row['Hn'] || '';
+                    if (!isAuthenticated) {
+                        an = '*** (ซ่อน) ***';
+                        hn = '*** (ซ่อน) ***';
+                    }
+                    const isOver3 = parseInt(row['จำนวนวัน']) > 3;
+                    html += `<tr class="hover:bg-emerald-50/50">
+                        <td class="px-4 py-1.5 pl-8 text-gray-700 font-mono">${an}</td>
+                        <td class="px-4 py-1.5 text-gray-700 font-mono">${hn}</td>
+                        <td class="px-4 py-1.5 text-gray-600">${row['วันที่ Admit'] || ''}</td>
+                        <td class="px-4 py-1.5 text-gray-600">${row['วันที่จำหน่าย'] || ''}</td>
+                        <td class="px-4 py-1.5 text-center ${isOver3 ? 'text-amber-600 font-bold' : 'text-gray-700'}">${row['จำนวนวัน']}</td>
+                    </tr>`;
+                });
+                html += `<tr class="bg-emerald-50 border-b border-emerald-200"><td colspan="4" class="px-4 py-2 text-right font-bold text-emerald-800">รวมจำนวนชาร์ทตึก ${ward}:</td><td class="px-4 py-2 text-center font-bold text-emerald-700">${records.length}</td></tr>`;
+            });
+
+            if(sortedWards.length === 0) html += `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">ไม่มีข้อมูล</td></tr>`;
+            html += `</tbody></table>`;
+            
+            const el = document.getElementById('table-ward-detail');
+            if(el) el.innerHTML = html;
         }
 
         // TAB 4: Dept (แยกตามแผนกที่ยืม)
@@ -1239,6 +1363,119 @@
                 <body>
                     <div class="header">
                         <h1>รายงานสรุปสถานะชาร์ท "รอแพทย์สรุป" (แบบปกปิดชื่อแพทย์)</h1>
+                        <p>ข้อมูลอัปเดต ณ วันที่: ${dateStr}</p>
+                    </div>
+                    ${tableContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+        }
+
+        // --- Print Function (ตาราง A4 แนวตั้ง - รายละเอียดหมอ > 7 วัน) ---
+        function printDocDetailTable() {
+            const tableContent = document.getElementById('table-doc-detail').innerHTML;
+            if (!tableContent || tableContent.includes('ไม่มีข้อมูล')) {
+                Swal.fire({icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลตารางรายละเอียดสำหรับพิมพ์'});
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>รายละเอียดคนไข้: รอแพทย์สรุป (> 7 วัน)</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Sarabun', sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.4; padding: 0; margin: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        .header { text-align: center; margin-bottom: 15px; }
+                        .header h1 { font-size: 16pt; margin: 0 0 5px 0; color: #064e3b; }
+                        .header p { font-size: 10pt; margin: 0; color: #4b5563; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 9pt; }
+                        th { background-color: #065f46 !important; color: #fff !important; padding: 6px 8px; text-align: left; }
+                        th.text-center { text-align: center; }
+                        td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; }
+                        .bg-emerald-100\\/80 { background-color: #d1fae5 !important; }
+                        .bg-emerald-50, .bg-emerald-50\\/50 { background-color: #ecfdf5 !important; }
+                        .text-rose-600 { color: #e11d48 !important; }
+                        .text-emerald-900 { color: #064e3b !important; }
+                        .text-emerald-800 { color: #065f46 !important; }
+                        .font-bold { font-weight: bold; }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .pl-8 { padding-left: 2rem !important; }
+                        .border-l-4 { border-left: 4px solid #059669 !important; }
+                        .w-1\\/5 { width: 20%; }
+                        .w-24 { width: 6rem; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>รายงานรายละเอียดคนไข้: รอแพทย์สรุป (> 7 วัน)</h1>
+                        <p>ข้อมูลอัปเดต ณ วันที่: ${dateStr}</p>
+                    </div>
+                    ${tableContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+        }
+
+        // --- Print Function (ตาราง A4 แนวตั้ง - รายละเอียดรอตึกส่งออก) ---
+        function printWardDetailTable() {
+            const tableContent = document.getElementById('table-ward-detail').innerHTML;
+            if (!tableContent || tableContent.includes('ไม่มีข้อมูล')) {
+                Swal.fire({icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลตารางรายละเอียดสำหรับพิมพ์'});
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>รายละเอียดคนไข้: รอตึกส่งออก</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Sarabun', sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.4; padding: 0; margin: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        .header { text-align: center; margin-bottom: 15px; }
+                        .header h1 { font-size: 16pt; margin: 0 0 5px 0; color: #064e3b; }
+                        .header p { font-size: 10pt; margin: 0; color: #4b5563; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 9pt; }
+                        th { background-color: #065f46 !important; color: #fff !important; padding: 6px 8px; text-align: left; }
+                        th.text-center { text-align: center; }
+                        td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; }
+                        .bg-emerald-100\\/80 { background-color: #d1fae5 !important; }
+                        .bg-emerald-50, .bg-emerald-50\\/50 { background-color: #ecfdf5 !important; }
+                        .text-amber-600 { color: #d97706 !important; }
+                        .text-emerald-900 { color: #064e3b !important; }
+                        .text-emerald-800 { color: #065f46 !important; }
+                        .text-emerald-700 { color: #047857 !important; }
+                        .font-bold { font-weight: bold; }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .pl-8 { padding-left: 2rem !important; }
+                        .border-l-4 { border-left: 4px solid #059669 !important; }
+                        .w-1\\/5 { width: 20%; }
+                        .w-24 { width: 6rem; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>รายงานรายละเอียดคนไข้: รอตึกส่งออก</h1>
                         <p>ข้อมูลอัปเดต ณ วันที่: ${dateStr}</p>
                     </div>
                     ${tableContent}
